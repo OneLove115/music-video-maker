@@ -59,7 +59,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parse audio analysis results\nconst audioAnalysis = {\n  beats: [],\n  bpm: 120, // Default\n  duration: 180, // Default\n  key: 'C',\n  energy: 'medium'\n};\n\n// Generate visual prompts based on style\nconst stylePrompts = {\n  modern: 'sleek, minimalist, geometric shapes, neon lights, urban cityscape',\n  retro: '80s synthwave, neon grid, sunset, palm trees, vintage vhs effect',\n  cinematic: 'film grain, wide angle, dramatic lighting, slow motion, epic',\n  abstract: 'surreal, artistic, flowing colors, abstract shapes, dreamlike',\n  neon: 'glowing, vibrant, electric colors, light trails, cyberpunk',\n  dark: 'moody, atmospheric, shadows, fog, mysterious, gothic'\n};\n\n// Generate frame prompts\nconst lyrics = $input.item.json.lyrics;\nconst lines = lyrics.split('\\n').filter(l => l.trim());\nconst frames = lines.map((line, i) => ({\n  text: line,\n  startTime: i * 4,\n  endTime: (i + 1) * 4,\n  prompt: `music video background, ${stylePrompts[$input.item.json.style]}, ${line}`\n}));\n\nreturn {\n  jobId: $input.item.json.jobId,\n  audioAnalysis,\n  frames,\n  style: $input.item.json.style\n};"
+        "jsCode": "// Parse audio analysis results\nconst audioAnalysis = {\n  beats: [],\n  bpm: 120,\n  duration: 180,\n  key: 'C',\n  energy: 'medium'\n};\n\n// PHOTOREALISTIC prompts - indistinguishable from reality\nconst realismPrefix = 'Ultra-realistic photograph, shot on Canon EOS R5, 85mm lens, f/1.4 aperture, natural lighting, shallow depth of field, 8K resolution, photorealistic, RAW sensor data, natural textures, realistic shadows, film grain, ';\n\nconst realismSuffix = ', photorealistic, no AI artifacts, natural imperfections, realistic grain, authentic colors, depth of field, volumetric lighting, cinematic quality, professional photography';\n\nconst stylePrompts = {\n  photorealistic: {\n    prefix: 'Ultra-realistic photograph, shot on Canon EOS R5, 85mm lens, f/1.4, natural lighting, ',\n    prompt: 'authentic moment, candid composition, realistic textures, natural shadows, shallow depth of field',\n    suffix: ', photorealistic, 8K, RAW quality, film grain, authentic colors'\n  },\n  documentary: {\n    prefix: 'Documentary photograph, National Geographic style, raw authentic, ',\n    prompt: 'photojournalism, 35mm film, natural moment, candid human expressions, realistic lighting',\n    suffix: ', unedited, authentic, realistic grain, natural colors, depth of field'\n  },\n  cinematic: {\n    prefix: 'Cinematic film still, shot on ARRI Alexa, anamorphic lens, ',\n    prompt: 'Hollywood production quality, volumetric lighting, realistic atmosphere, natural shadows',\n    suffix: ', 4K RAW, film grain, realistic depth, cinematic color grading'\n  },\n  urban: {\n    prefix: 'Street photography, urban environment, candid authentic, ',\n    prompt: 'natural lighting, realistic shadows, city atmosphere, 50mm lens, f/2.8 bokeh',\n    suffix: ', photojournalistic style, realistic textures, natural grain, authentic moment'\n  },\n  portrait: {\n    prefix: 'Professional portrait photography, studio lighting, ',\n    prompt: 'realistic skin texture, visible pores, natural hair strands, authentic expression, 105mm portrait lens',\n    suffix: ', realistic depth, editorial quality, natural imperfections, shallow DOF'\n  },\n  musicvideo: {\n    prefix: 'Music video cinematography, professional grade camera, ',\n    prompt: 'realistic lighting, natural colors, volumetric light rays, cinematic depth of field',\n    suffix: ', 4K RAW footage, Steadicam shot, authentic atmosphere, realistic grain'\n  }\n};\n\n// Get style configuration\nconst style = $input.item.json.style || 'photorealistic';\nconst styleConfig = stylePrompts[style] || stylePrompts.photorealistic;\n\n// Generate frame prompts with photorealistic enhancement\nconst lyrics = $input.item.json.lyrics;\nconst lines = lyrics.split('\\n').filter(l => l.trim());\n\nconst frames = lines.map((line, i) => {\n  const basePrompt = `${styleConfig.prefix}${styleConfig.prompt}, ${line}${styleConfig.suffix}`;\n  \n  return {\n    text: line,\n    startTime: i * 4,\n    endTime: (i + 1) * 4,\n    prompt: basePrompt,\n    realismSettings: {\n      addFilmGrain: true,\n      addChromaticAberration: true,\n      addVignette: true,\n      addMotionBlur: false,\n      depthOfField: 'f/1.4',\n      colorGrading: 'cinematic'\n    }\n  };\n});\n\nreturn {\n  jobId: $input.item.json.jobId,\n  audioAnalysis,\n  frames,\n  style,\n  realismLevel: 'maximum',\n  photorealistic: true\n};"
       },
       "id": "generate-frames",
       "name": "Generate Frames",
@@ -70,22 +70,31 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://api.openai.com/v1/images/generations",
+        "url": "https://api.stability.ai/v1/generation/stable-diffusion-xl-1024-v1-0/text-to-image",
         "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "openAiApi",
+        "nodeCredentialType": "stabilityApi",
         "options": {
           "bodyParameters": {
             "parameters": [
-              { "name": "prompt", "value": "={{ $json.frames[0].prompt }}" },
-              { "name": "n", "value": 10 },
-              { "name": "size", "value": "1920x1080" },
-              { "name": "quality", "value": "hd" }
+              { "name": "text_prompts", "value": "[{\"text\": \"={{ $json.frames[0].prompt }}, photorealistic, ultra realistic, 8K, RAW photo, realistic skin texture, natural lighting, film grain\", \"weight\": 1}, {\"text\": \"blurry, cartoon, illustration, artificial, fake, distorted, low quality, watermark\", \"weight\": -1}]" },
+              { "name": "cfg_scale", "value": 7 },
+              { "name": "height", "value": 1024 },
+              { "name": "width", "value": 1024 },
+              { "name": "samples", "value": 1 },
+              { "name": "steps", "value": 50 },
+              { "name": "style_preset", "value": "photographic" }
             ]
           }
+        },
+        "headers": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Accept", "value": "application/json" }
+          ]
         }
       },
       "id": "generate-images",
-      "name": "Generate AI Images",
+      "name": "Generate Photorealistic Images",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [1250, 300]

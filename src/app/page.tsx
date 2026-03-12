@@ -111,9 +111,14 @@ export default function Home() {
                 AI Music Video Maker
               </span>
             </h1>
-            <p className="text-xl md:text-2xl text-urban-muted max-w-3xl mx-auto mb-8">
+            <p className="text-xl md:text-2xl text-urban-muted max-w-3xl mx-auto mb-4">
               Transform your audio into stunning visual experiences. Upload your track, 
               add lyrics, choose a style — let AI create your next viral video.
+            </p>
+            <p className="text-lg md:text-xl text-neon-purple max-w-2xl mx-auto mb-8">
+              <strong>Photorealistic visuals indistinguishable from reality.</strong>
+              <br />
+              <span className="text-urban-muted text-sm">Natural lighting, film grain, depth of field — every detail authentic.</span>
             </p>
           </motion.div>
 

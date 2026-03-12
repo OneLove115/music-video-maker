@@ -24,12 +24,12 @@ export default function DashboardPage() {
   const [jobId, setJobId] = useState<string | null>(null);
 
   const styles = [
-    { id: "modern", name: "Modern", preview: "from-neon-purple to-neon-pink" },
-    { id: "retro", name: "Retro", preview: "from-orange-500 to-red-500" },
-    { id: "cinematic", name: "Cinematic", preview: "from-blue-500 to-cyan-500" },
-    { id: "neon", name: "Neon Glow", preview: "from-green-400 to-cyan-400" },
-    { id: "dark", name: "Dark Mode", preview: "from-gray-700 to-gray-900" },
-    { id: "abstract", name: "Abstract", preview: "from-yellow-400 to-red-500" },
+    { id: "photorealistic", name: "Photorealistic", preview: "from-gray-100 to-gray-300", desc: "Ultra-realistic, indistinguishable from reality" },
+    { id: "documentary", name: "Documentary", preview: "from-amber-200 to-amber-400", desc: "Authentic, raw, photojournalistic" },
+    { id: "cinematic", name: "Cinematic", preview: "from-blue-400 to-cyan-500", desc: "Hollywood film quality" },
+    { id: "urban", name: "Urban Street", preview: "from-gray-400 to-gray-600", desc: "Candid city photography" },
+    { id: "portrait", name: "Portrait", preview: "from-rose-200 to-rose-400", desc: "Professional studio portraits" },
+    { id: "musicvideo", name: "Music Video", preview: "from-purple-400 to-pink-500", desc: "Professional music video aesthetic" },
   ];
 
   const handleDrop = (e: React.DragEvent) => {
@@ -265,6 +265,7 @@ That everyone sings along"
                     className={`w-full h-24 rounded-lg mb-4 bg-gradient-to-br ${s.preview}`}
                   />
                   <p className="font-semibold">{s.name}</p>
+                  <p className="text-xs text-urban-muted mt-1">{s.desc}</p>
                 </button>
               ))}
             </div>
