@@ -6,8 +6,8 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "VideoForge | AI Music Video Maker",
-  description: "Create stunning music videos with AI. Upload audio, add lyrics, and let AI generate professional visuals.",
-  keywords: ["music video", "AI video", "video maker", "lyrics video", "audio visualization"],
+  description: "Create stunning music videos with photorealistic AI. Upload your audio, add lyrics, and let AI create professional visuals indistinguishable from reality.",
+  keywords: ["music video", "AI video", "video maker", "lyrics video", "audio visualization", "photorealistic"],
 };
 
 export default function RootLayout({
