@@ -1,0 +1,166 @@
+{
+  "name": "Music Video Maker Pipeline",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "music-video",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate and prepare video job\nconst { jobId, userId, style, lyrics, audioUrl } = $input.item.json;\n\n// Validate required fields\nif (!jobId || !userId || !style || !lyrics) {\n  throw new Error('Missing required fields');\n}\n\n// Create job record\nconst job = {\n  jobId,\n  userId,\n  style,\n  lyrics,\n  audioUrl,\n  status: 'queued',\n  progress: 0,\n  createdAt: new Date().toISOString(),\n  steps: {\n    upload: 'pending',\n    audioAnalysis: 'pending',\n    visualGeneration: 'pending',\n    rendering: 'pending',\n    upload: 'pending'\n  }\n};\n\nreturn { job };"
+      },
+      "id": "prepare-job",
+      "name": "Prepare Job",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "tableId": "video_jobs",
+        "fieldsToSend": "defineBelow",
+        "fieldValues": {
+          "values": [
+            { "field": "job_id", "expression": "={{ $json.job.jobId }}" },
+            { "field": "user_id", "expression": "={{ $json.job.userId }}" },
+            { "field": "style", "expression": "={{ $json.job.style }}" },
+            { "field": "lyrics", "expression": "={{ $json.job.lyrics }}" },
+            { "field": "status", "expression": "={{ $json.job.status }}" },
+            { "field": "progress", "expression": "={{ $json.job.progress }}" },
+            { "field": "created_at", "expression": "={{ $json.job.createdAt }}" }
+          ]
+        }
+      },
+      "id": "create-job-record",
+      "name": "Create Job Record",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "command": "ffmpeg -i \"$AUDIO_FILE\" -af \"silencedetect=noise=-30dB:d=0.5\" -f null - 2>&1 | grep -E \"silence_(start|end)\" || echo \"no_silence\""
+      },
+      "id": "beat-detection",
+      "name": "Beat Detection",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse audio analysis results\nconst audioAnalysis = {\n  beats: [],\n  bpm: 120, // Default\n  duration: 180, // Default\n  key: 'C',\n  energy: 'medium'\n};\n\n// Generate visual prompts based on style\nconst stylePrompts = {\n  modern: 'sleek, minimalist, geometric shapes, neon lights, urban cityscape',\n  retro: '80s synthwave, neon grid, sunset, palm trees, vintage vhs effect',\n  cinematic: 'film grain, wide angle, dramatic lighting, slow motion, epic',\n  abstract: 'surreal, artistic, flowing colors, abstract shapes, dreamlike',\n  neon: 'glowing, vibrant, electric colors, light trails, cyberpunk',\n  dark: 'moody, atmospheric, shadows, fog, mysterious, gothic'\n};\n\n// Generate frame prompts\nconst lyrics = $input.item.json.lyrics;\nconst lines = lyrics.split('\\n').filter(l => l.trim());\nconst frames = lines.map((line, i) => ({\n  text: line,\n  startTime: i * 4,\n  endTime: (i + 1) * 4,\n  prompt: `music video background, ${stylePrompts[$input.item.json.style]}, ${line}`\n}));\n\nreturn {\n  jobId: $input.item.json.jobId,\n  audioAnalysis,\n  frames,\n  style: $input.item.json.style\n};"
+      },
+      "id": "generate-frames",
+      "name": "Generate Frames",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/images/generations",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "options": {
+          "bodyParameters": {
+            "parameters": [
+              { "name": "prompt", "value": "={{ $json.frames[0].prompt }}" },
+              { "name": "n", "value": 10 },
+              { "name": "size", "value": "1920x1080" },
+              { "name": "quality", "value": "hd" }
+            ]
+          }
+        }
+      },
+      "id": "generate-images",
+      "name": "Generate AI Images",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "command": "cd /app/remotion && npx remotion render Video.tsx out.mp4 --frames 0-{{ $json.frames.length * 30 }}"
+      },
+      "id": "render-video",
+      "name": "Render Video",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1450, 300]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "video_jobs",
+        "filterType": "defineBelow",
+        "fieldsToSend": "defineBelow",
+        "fieldValues": {
+          "values": [
+            { "field": "status", "value": "completed" },
+            { "field": "progress", "value": 100 },
+            { "field": "video_url", "value": "https://storage.example.com/videos/{{ $json.jobId }}.mp4" },
+            { "field": "completed_at", "value": "{{ new Date().toISOString() }}" }
+          ]
+        },
+        "filter": {
+          "conditions": [
+            { "field": "job_id", "value": "{{ $json.jobId }}" }
+          ]
+        }
+      },
+      "id": "update-job-complete",
+      "name": "Update Job Complete",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1650, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "return {\n  jobId: $input.item.json.jobId,\n  status: 'completed',\n  videoUrl: `https://storage.example.com/videos/${$input.item.json.jobId}.mp4`,\n  downloadUrl: `https://storage.example.com/videos/${$input.item.json.jobId}.mp4`\n};"
+      },
+      "id": "format-response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1850, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [[{"node": "Prepare Job", "type": "main", "index": 0}]]
+    },
+    "Prepare Job": {
+      "main": [[{"node": "Create Job Record", "type": "main", "index": 0}]]
+    },
+    "Create Job Record": {
+      "main": [[{"node": "Beat Detection", "type": "main", "index": 0}]]
+    },
+    "Beat Detection": {
+      "main": [[{"node": "Generate Frames", "type": "main", "index": 0}]]
+    },
+    "Generate Frames": {
+      "main": [[{"node": "Generate AI Images", "type": "main", "index": 0}]]
+    },
+    "Generate AI Images": {
+      "main": [[{"node": "Render Video", "type": "main", "index": 0}]]
+    },
+    "Render Video": {
+      "main": [[{"node": "Update Job Complete", "type": "main", "index": 0}]]
+    },
+    "Update Job Complete": {
+      "main": [[{"node": "Format Response", "type": "main", "index": 0}]]
+    }
+  }
+}
